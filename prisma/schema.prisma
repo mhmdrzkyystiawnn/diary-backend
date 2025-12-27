@@ -1,0 +1,94 @@
+// File: prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Model User
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique // <--- TAMBAHAN PENTING
+  password  String?  // <--- Jadi Optional (tanda tanya) karena user Google gak punya password
+  avatar    String?  // <--- Buat nyimpen foto profil Google
+  createdAt DateTime @default(now())
+
+  resetPasswordToken   String?   // Token unik
+  resetPasswordExpires DateTime? // Masa berlaku token (misal 1 jam)
+  
+  files     File[]
+  categories Category[]
+}
+
+// Update Model File
+model File {
+  id           String   @id @default(uuid())
+  originalName String   
+  filename     String   
+  path         String   
+  mimeType     String   // Contoh: video/mp4, application/zip
+  size         Int      
+  fileHash     String   
+
+  type         FileType // Enum yang sudah diperlengkap
+  
+  // FITUR BARU: Metadata Fleksibel (JSON)
+  // Bisa isi: { "duration": 120, "resolution": "1080p" } buat video
+  // Atau: { "pageCount": 5 } buat PDF
+  metadata     Json?    
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  
+  memory       Memory?  
+  notes        TimestampNote[] 
+  
+  categories   Category[] 
+}
+
+// Update Enum: Tambahkan tipe baru di sini
+enum FileType {
+  PHOTO
+  AUDIO
+  VIDEO     // Buat .mp4, .mkv
+  ARCHIVE   // Buat .zip, .rar, .7z
+  DOCUMENT  // Buat .pdf, .docx, .txt
+  OTHER     // Jaga-jaga buat file aneh lainnya
+}
+
+// 3. Model Memory (Diary)
+model Memory {
+  id        String   @id @default(uuid())
+  content   String   @db.Text 
+  mood      String?  
+  
+  fileId    String   @unique 
+  file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+}
+
+// 4. Model TimestampNote (Komentar di detik tertentu lagu)
+model TimestampNote {
+  id        String   @id @default(uuid())
+  timestamp Int      
+  content   String   
+  
+  fileId    String
+  file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+}
+
+// 5. Model Category
+model Category {
+  id     String @id @default(uuid())
+  name   String
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  files  File[]
+}
